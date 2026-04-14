@@ -21,21 +21,81 @@
   };
 
   const VEHICLES = {
-    lada: { name: 'Лада Classic', accel: 0.13, brake: 0.18, grip: 0.055, color: '#d14f4f', unlock: 0 },
-    uaz: { name: 'UAZ Trail', accel: 0.11, brake: 0.14, grip: 0.08, color: '#4e8d55', unlock: 400 },
-    gaz: { name: 'GAZ Cargo', accel: 0.09, brake: 0.12, grip: 0.11, color: '#6080d1', unlock: 600 },
+    lada: {
+      name: 'Лада Classic',
+      accel: 0.12,
+      brake: 0.17,
+      traction: 1,
+      grip: 0.09,
+      mass: 1,
+      maxSpeed: 11,
+      body: 'compact',
+      color: '#d14f4f',
+      unlock: 0,
+    },
+    uaz: {
+      name: 'UAZ Trail',
+      accel: 0.11,
+      brake: 0.14,
+      traction: 1.2,
+      grip: 0.12,
+      mass: 1.15,
+      maxSpeed: 10,
+      body: 'jeep',
+      color: '#4e8d55',
+      unlock: 400,
+    },
+    gaz: {
+      name: 'GAZ Cargo',
+      accel: 0.085,
+      brake: 0.12,
+      traction: 1.05,
+      grip: 0.1,
+      mass: 1.45,
+      maxSpeed: 9.2,
+      body: 'truck',
+      color: '#6080d1',
+      unlock: 600,
+    },
   };
 
   const SKINS = {
-    default: { sky: '#65b7ff', sky2: '#b7e2ff', ground: '#564127', deco: '#4e9132', unlock: 0, name: 'Базовый' },
-    sunset: { sky: '#f08a57', sky2: '#653f82', ground: '#4f2f27', deco: '#7a4421', unlock: 250, name: 'Закат' },
-    winter: { sky: '#90b2d5', sky2: '#dfefff', ground: '#dde4ee', deco: '#9db2ca', unlock: 350, name: 'Зимний' },
+    default: {
+      name: 'Базовый',
+      sky: '#65b7ff',
+      sky2: '#b7e2ff',
+      ground: '#564127',
+      deco: '#4e9132',
+      friction: 1,
+      traction: 1,
+      unlock: 0,
+    },
+    sunset: {
+      name: 'Закат',
+      sky: '#f08a57',
+      sky2: '#653f82',
+      ground: '#4f2f27',
+      deco: '#7a4421',
+      friction: 0.95,
+      traction: 1.05,
+      unlock: 250,
+    },
+    winter: {
+      name: 'Зимний',
+      sky: '#90b2d5',
+      sky2: '#dfefff',
+      ground: '#dde4ee',
+      deco: '#9db2ca',
+      friction: 0.7,
+      traction: 0.75,
+      unlock: 350,
+    },
   };
 
-  const COSMIC_EVENTS = [
-    { key: 'wind', label: 'Боковой ветер', factor: 1.3 },
-    { key: 'lowG', label: 'Низкая гравитация', factor: 0.6 },
-    { key: 'heavy', label: 'Тяжёлый кузов', factor: 1.4 },
+  const EVENTS = [
+    { key: 'wind', label: 'Боковой ветер', rotDrift: 0.002 },
+    { key: 'lowG', label: 'Низкая гравитация', gravityMul: 0.62 },
+    { key: 'heavy', label: 'Тяжёлый кузов', gravityMul: 1.35 },
   ];
 
   const state = {
@@ -49,9 +109,10 @@
     velocity: 0,
     cameraX: 0,
     carY: 0,
-    carAngle: 0,
+    yVelocity: 0,
     bodyRotation: 0,
-    gravity: 0.55,
+    angularVelocity: 0,
+    gravity: 0.34,
     dist: 0,
     coins: Number(localStorage.getItem('rr_coins') || 0),
     best: Number(localStorage.getItem('rr_best') || 0),
@@ -59,9 +120,8 @@
     ownedSkins: JSON.parse(localStorage.getItem('rr_skins') || '["default"]'),
     selectedVehicle: localStorage.getItem('rr_selected_vehicle') || 'lada',
     selectedSkin: localStorage.getItem('rr_selected_skin') || 'default',
-    eventTimer: 0,
+    eventTimer: 360,
     currentEvent: null,
-    yVelocity: 0,
     coinsOnTrack: [],
     seed: Math.random() * 10000,
   };
@@ -75,6 +135,10 @@
     localStorage.setItem('rr_selected_skin', state.selectedSkin);
   }
 
+  function setStatus(text) {
+    ui.status.textContent = text;
+  }
+
   function resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = Math.floor(window.innerWidth * dpr);
@@ -83,15 +147,15 @@
   }
 
   function hash(n) {
-    const x = Math.sin(n * 123.9898 + state.seed) * 43758.5453;
+    const x = Math.sin(n * 127.1 + state.seed) * 43758.5453123;
     return x - Math.floor(x);
   }
 
   function terrainHeight(x) {
-    return 340
-      + Math.sin(x * 0.008) * 90
-      + Math.sin(x * 0.019 + 1.5) * 35
-      + Math.sin(x * 0.042 + 8.4) * 18;
+    return 390
+      + Math.sin(x * 0.008) * 100
+      + Math.sin(x * 0.019 + 1.4) * 45
+      + Math.sin(x * 0.041 + 7.6) * 20;
   }
 
   function terrainSlope(x) {
@@ -100,38 +164,26 @@
   }
 
   function ensureTrackCoins() {
-    const ahead = state.cameraX + window.innerWidth + 800;
-    while (state.coinsOnTrack.length < 60) {
-      const lastX = state.coinsOnTrack.length ? state.coinsOnTrack[state.coinsOnTrack.length - 1].x : state.worldX + 300;
-      const nextX = lastX + 120 + hash(lastX) * 300;
+    const ahead = state.cameraX + window.innerWidth + 1100;
+    while (state.coinsOnTrack.length < 90) {
+      const lastX = state.coinsOnTrack.length
+        ? state.coinsOnTrack[state.coinsOnTrack.length - 1].x
+        : state.worldX + 200;
+      const nextX = lastX + 80 + hash(lastX + 23) * 220;
       if (nextX > ahead) break;
-      state.coinsOnTrack.push({ x: nextX, y: terrainHeight(nextX) - 60 - hash(nextX + 77) * 40, taken: false });
+      state.coinsOnTrack.push({
+        x: nextX,
+        y: terrainHeight(nextX) - 55 - hash(nextX + 77) * 60,
+        taken: false,
+      });
     }
 
-    state.coinsOnTrack = state.coinsOnTrack.filter((c) => c.x > state.cameraX - 400 && !c.taken);
-  }
-
-  function setStatus(text) {
-    ui.status.textContent = text;
+    state.coinsOnTrack = state.coinsOnTrack.filter((coin) => !coin.taken && coin.x > state.cameraX - 300);
   }
 
   function addCoins(amount) {
     state.coins += amount;
     persist();
-  }
-
-  function buy(itemType, key, price) {
-    if (state.coins < price) {
-      setStatus('Недостаточно монет');
-      return false;
-    }
-    state.coins -= price;
-    if (itemType === 'skin') state.ownedSkins.push(key);
-    if (itemType === 'vehicle') state.ownedVehicles.push(key);
-    persist();
-    refreshShop();
-    setStatus(`Покупка успешна: ${itemType === 'skin' ? SKINS[key].name : VEHICLES[key].name}`);
-    return true;
   }
 
   function refreshShop() {
@@ -147,27 +199,39 @@
     ui.mapSkinSelect.value = state.selectedSkin;
   }
 
+  function buy(itemType, key, price) {
+    if (state.coins < price) {
+      setStatus('Недостаточно монет для покупки.');
+      return;
+    }
+    state.coins -= price;
+    if (itemType === 'skin') state.ownedSkins.push(key);
+    if (itemType === 'vehicle') state.ownedVehicles.push(key);
+    persist();
+    refreshShop();
+    setStatus(`Покупка: ${itemType === 'skin' ? SKINS[key].name : VEHICLES[key].name}`);
+  }
+
   async function initYandexSdk() {
     if (!window.YaGames) {
-      setStatus('SDK Яндекса не найден: запуск в локальном режиме.');
+      setStatus('SDK Яндекса не найден. Локальный режим без настоящей монетизации.');
       return;
     }
 
     try {
-      const ysdk = await window.YaGames.init();
-      state.ysdk = ysdk;
-      await ysdk.features?.LoadingAPI?.ready();
-      state.payments = await ysdk.getPayments?.();
-      setStatus('SDK Яндекс Игр подключен. Монетизация активна.');
-    } catch (e) {
-      console.error(e);
-      setStatus('Не удалось инициализировать SDK. Игра работает офлайн.');
+      state.ysdk = await window.YaGames.init();
+      await state.ysdk.features?.LoadingAPI?.ready();
+      state.payments = await state.ysdk.getPayments?.();
+      setStatus('SDK подключен. Доступны rewarded и IAP.');
+    } catch (error) {
+      console.error(error);
+      setStatus('Ошибка SDK. Игра продолжит работу офлайн.');
     }
   }
 
   async function showRewardedAd() {
     if (!state.ysdk?.adv?.showRewardedVideo) {
-      setStatus('Рекламное видео доступно только на платформе Яндекс Игр.');
+      setStatus('Rewarded реклама доступна только в Яндекс Играх.');
       return false;
     }
 
@@ -184,100 +248,110 @@
 
   async function purchaseCoinsPack() {
     if (!state.payments?.purchase) {
-      setStatus('IAP доступен только внутри Яндекс Игр. Добавлено +1000 монет в демо-режиме.');
       addCoins(1000);
       refreshShop();
+      setStatus('Локальный демо-IAP: +1000 монет.');
       return;
     }
 
     try {
-      const productId = 'coins_1000';
-      await state.payments.purchase({ id: productId });
+      await state.payments.purchase({ id: 'coins_1000' });
       addCoins(1000);
       refreshShop();
-      setStatus('Покупка успешна: +1000 монет.');
-    } catch (e) {
-      console.error(e);
+      setStatus('Покупка прошла успешно: +1000 монет.');
+    } catch (error) {
+      console.error(error);
       setStatus('Покупка отменена или недоступна.');
     }
   }
 
   function resetRun() {
-    state.worldX = 0;
+    state.worldX = 42;
     state.velocity = 0;
     state.cameraX = 0;
-    state.yVelocity = 0;
-    state.bodyRotation = 0;
-    state.carAngle = 0;
     state.dead = false;
     state.revived = false;
     state.dist = 0;
     state.currentEvent = null;
-    state.eventTimer = 420;
+    state.eventTimer = 380;
     state.coinsOnTrack = [];
-    setStatus('Новая поездка. Следи за аномалиями трассы!');
+
+    const startGround = terrainHeight(state.worldX);
+    state.carY = startGround;
+    state.yVelocity = 0;
+    state.bodyRotation = Math.atan(terrainSlope(state.worldX));
+    state.angularVelocity = 0;
+    setStatus('Новый заезд: бесконечная трасса, аномалии и кастомные машины.');
   }
 
-  function applyEventEffect() {
-    state.gravity = 0.55;
-    if (!state.currentEvent) return;
-    if (state.currentEvent.key === 'lowG') state.gravity *= state.currentEvent.factor;
-    if (state.currentEvent.key === 'heavy') state.gravity *= state.currentEvent.factor;
-  }
-
-  function update(dt) {
-    if (state.dead) return;
-
+  function applyEventTimers(dt) {
     state.eventTimer -= dt;
-    if (state.eventTimer <= 0) {
-      state.currentEvent = COSMIC_EVENTS[Math.floor(Math.random() * COSMIC_EVENTS.length)];
-      state.eventTimer = 540;
-      setStatus(`Аномалия: ${state.currentEvent.label}`);
-    }
-    applyEventEffect();
+    if (state.eventTimer > 0) return;
 
+    state.currentEvent = EVENTS[Math.floor(Math.random() * EVENTS.length)];
+    state.eventTimer = 540;
+    setStatus(`Аномалия трассы: ${state.currentEvent.label}`);
+  }
+
+  function updatePhysics(dt) {
     const vehicle = VEHICLES[state.selectedVehicle];
+    const skin = SKINS[state.selectedSkin];
 
-    if (state.throttle) state.velocity += vehicle.accel * dt;
+    let gravity = state.gravity;
+    if (state.currentEvent?.gravityMul) gravity *= state.currentEvent.gravityMul;
+
+    const slopeAngle = Math.atan(terrainSlope(state.worldX));
+    const slopeForce = Math.sin(slopeAngle) * gravity * 2.4 * vehicle.mass;
+
+    const tractionMul = vehicle.traction * skin.traction;
+    if (state.throttle) state.velocity += vehicle.accel * tractionMul * dt;
     if (state.brake) state.velocity -= vehicle.brake * dt;
 
-    state.velocity *= 0.992;
-    state.velocity = Math.max(state.velocity, -2);
-    state.velocity = Math.min(state.velocity, 14);
+    state.velocity -= slopeForce * dt;
 
-    if (state.currentEvent?.key === 'wind') {
-      state.bodyRotation += 0.0018 * state.currentEvent.factor * dt;
-    }
+    const rolling = 0.018 * skin.friction * vehicle.mass * Math.sign(state.velocity || 1);
+    state.velocity -= rolling * dt;
+    state.velocity *= 0.997;
+    state.velocity = Math.min(Math.max(state.velocity, -6), vehicle.maxSpeed);
 
     state.worldX += state.velocity * dt;
-    state.cameraX = state.worldX - 240;
+    state.cameraX = state.worldX - window.innerWidth * 0.25;
 
     const groundY = terrainHeight(state.worldX);
-    const slope = terrainSlope(state.worldX);
-    const targetAngle = Math.atan(slope);
+    const targetAngle = Math.atan(terrainSlope(state.worldX));
 
-    const airborne = state.carY < groundY - 5;
-    if (airborne) {
-      state.yVelocity += state.gravity * dt;
-    } else {
-      state.yVelocity = 0;
+    const onGround = state.carY >= groundY - 4 && state.yVelocity >= -0.2;
+
+    if (onGround) {
       state.carY = groundY;
-      state.bodyRotation += (targetAngle - state.bodyRotation) * vehicle.grip;
+      state.yVelocity = 0;
+
+      const grip = vehicle.grip * skin.traction;
+      const angleDiff = targetAngle - state.bodyRotation;
+      state.angularVelocity += angleDiff * grip * dt;
+      state.angularVelocity *= 0.8;
+      state.bodyRotation += state.angularVelocity;
+
+      if (Math.abs(angleDiff) > 0.6 && Math.abs(state.velocity) > 6.5) {
+        state.yVelocity = -4.8 - Math.abs(state.velocity) * 0.15;
+        state.angularVelocity += angleDiff * 0.25;
+      }
+    } else {
+      state.yVelocity += gravity * dt;
+      state.carY += state.yVelocity;
+      state.angularVelocity *= 0.997;
+      state.bodyRotation += state.angularVelocity;
     }
 
-    state.carY += state.yVelocity;
-    state.carAngle = state.bodyRotation;
-
-    if (!airborne && state.velocity > 7 && Math.abs(targetAngle - state.bodyRotation) > 0.7) {
-      state.yVelocity = -6;
-      state.bodyRotation += (targetAngle - state.bodyRotation) * 0.2;
+    if (state.currentEvent?.key === 'wind') {
+      state.angularVelocity += state.currentEvent.rotDrift * dt;
     }
 
     for (const coin of state.coinsOnTrack) {
       if (coin.taken) continue;
       const dx = coin.x - state.worldX;
       const dy = coin.y - state.carY;
-      if (dx * dx + dy * dy < 2300) {
+      if (dx * dx + dy * dy < 2600) {
         coin.taken = true;
         addCoins(1);
       }
@@ -289,12 +363,18 @@
       persist();
     }
 
-    if (Math.abs(state.bodyRotation) > 1.8 || state.carY > groundY + 180) {
+    if (Math.abs(state.bodyRotation) > 2.1 || state.carY > groundY + 220) {
       state.dead = true;
-      setStatus('Авария! Ревайв за рекламу или рестарт.');
+      setStatus('Авария! Можно сделать 1 ревайв за rewarded-рекламу.');
     }
 
     ensureTrackCoins();
+  }
+
+  function update(dt) {
+    if (state.dead) return;
+    applyEventTimers(dt);
+    updatePhysics(dt);
   }
 
   function drawBackground() {
@@ -306,38 +386,39 @@
     ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
     for (let i = 0; i < 6; i += 1) {
-      const x = ((i * 320 - (state.cameraX * (0.2 + i * 0.02))) % (window.innerWidth + 400)) - 200;
-      const y = 110 + i * 8;
-      ctx.fillStyle = 'rgba(255,255,255,0.2)';
+      const x = ((i * 360 - state.cameraX * (0.12 + i * 0.015)) % (window.innerWidth + 450)) - 220;
+      ctx.fillStyle = 'rgba(255,255,255,0.22)';
       ctx.beginPath();
-      ctx.arc(x, y, 34 + i * 5, 0, Math.PI * 2);
+      ctx.arc(x, 90 + i * 11, 30 + i * 4.5, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
   function drawTerrain() {
     const skin = SKINS[state.selectedSkin];
+    const startX = Math.floor(state.cameraX - 260);
+    const endX = Math.floor(state.cameraX + window.innerWidth + 280);
+
     ctx.fillStyle = skin.ground;
     ctx.beginPath();
-
-    const startX = Math.floor(state.cameraX - 200);
-    const endX = Math.floor(state.cameraX + window.innerWidth + 220);
-
-    ctx.moveTo(-30, window.innerHeight + 50);
-    for (let world = startX; world <= endX; world += 12) {
-      const sx = world - state.cameraX;
-      const sy = terrainHeight(world);
-      ctx.lineTo(sx, sy);
+    ctx.moveTo(-20, window.innerHeight + 80);
+    for (let world = startX; world <= endX; world += 10) {
+      ctx.lineTo(world - state.cameraX, terrainHeight(world));
     }
-    ctx.lineTo(window.innerWidth + 30, window.innerHeight + 50);
+    ctx.lineTo(window.innerWidth + 20, window.innerHeight + 80);
     ctx.closePath();
     ctx.fill();
 
+    const decoStep = 170;
+    const firstDecoX = Math.floor(startX / decoStep) * decoStep;
     ctx.fillStyle = skin.deco;
-    for (let x = startX; x <= endX; x += 160) {
-      const sx = x - state.cameraX;
-      const sy = terrainHeight(x);
-      ctx.fillRect(sx - 5, sy - 34, 10, 30 + hash(x) * 24);
+    for (let decoX = firstDecoX; decoX <= endX; decoX += decoStep) {
+      const xJitter = (hash(decoX + 301) - 0.5) * 90;
+      const worldX = decoX + xJitter;
+      const sx = worldX - state.cameraX;
+      const groundY = terrainHeight(worldX);
+      const h = 22 + hash(worldX + 901) * 34;
+      ctx.fillRect(sx - 5, groundY - h, 10, h);
     }
   }
 
@@ -345,15 +426,43 @@
     for (const coin of state.coinsOnTrack) {
       if (coin.taken) continue;
       const sx = coin.x - state.cameraX;
-      const sy = coin.y;
-      if (sx < -40 || sx > window.innerWidth + 40) continue;
+      if (sx < -20 || sx > window.innerWidth + 20) continue;
       ctx.fillStyle = '#ffcf2f';
       ctx.beginPath();
-      ctx.arc(sx, sy, 10, 0, Math.PI * 2);
+      ctx.arc(sx, coin.y, 10, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = '#8a6508';
+      ctx.strokeStyle = '#8d6711';
       ctx.stroke();
     }
+  }
+
+  function drawVehicleShape(type) {
+    if (type === 'jeep') {
+      ctx.fillRect(-44, -26, 94, 28);
+      ctx.fillRect(-10, -39, 46, 16);
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+      ctx.fillRect(2, -36, 14, 10);
+      return;
+    }
+
+    if (type === 'truck') {
+      ctx.fillRect(-56, -24, 118, 28);
+      ctx.fillRect(10, -44, 34, 20);
+      ctx.fillStyle = 'rgba(255,255,255,0.22)';
+      ctx.fillRect(14, -40, 18, 11);
+      ctx.fillStyle = '#111';
+      ctx.beginPath();
+      ctx.arc(-34, 10, 14, 0, Math.PI * 2);
+      ctx.arc(10, 10, 14, 0, Math.PI * 2);
+      ctx.arc(46, 10, 14, 0, Math.PI * 2);
+      ctx.fill();
+      return;
+    }
+
+    ctx.fillRect(-40, -22, 90, 26);
+    ctx.fillRect(-15, -34, 35, 14);
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.fillRect(-8, -31, 15, 8);
   }
 
   function drawCar() {
@@ -362,32 +471,32 @@
     const sy = state.carY;
 
     ctx.save();
-    ctx.translate(sx, sy - 14);
-    ctx.rotate(state.carAngle);
+    ctx.translate(sx, sy - 16);
+    ctx.rotate(state.bodyRotation);
 
     ctx.fillStyle = vehicle.color;
-    ctx.fillRect(-40, -22, 90, 26);
-    ctx.fillStyle = '#222';
-    ctx.fillRect(-15, -34, 35, 14);
+    drawVehicleShape(vehicle.body);
 
-    ctx.fillStyle = '#111';
-    ctx.beginPath();
-    ctx.arc(-20, 8, 14, 0, Math.PI * 2);
-    ctx.arc(30, 8, 14, 0, Math.PI * 2);
-    ctx.fill();
+    if (vehicle.body !== 'truck') {
+      ctx.fillStyle = '#111';
+      ctx.beginPath();
+      ctx.arc(-20, 8, 14, 0, Math.PI * 2);
+      ctx.arc(30, 8, 14, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     ctx.restore();
   }
 
   function drawGameOver() {
     if (!state.dead) return;
-    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
     ctx.fillStyle = '#fff';
-    ctx.font = 'bold 36px sans-serif';
-    ctx.fillText('АВАРИЯ', window.innerWidth / 2 - 85, window.innerHeight / 2 - 16);
+    ctx.font = 'bold 38px sans-serif';
+    ctx.fillText('АВАРИЯ', window.innerWidth / 2 - 85, window.innerHeight / 2 - 24);
     ctx.font = '22px sans-serif';
-    ctx.fillText(`Дистанция: ${Math.floor(state.dist)} м`, window.innerWidth / 2 - 95, window.innerHeight / 2 + 20);
+    ctx.fillText(`Дистанция: ${Math.floor(state.dist)} м`, window.innerWidth / 2 - 95, window.innerHeight / 2 + 12);
   }
 
   function draw() {
@@ -403,45 +512,52 @@
   }
 
   function bindEvents() {
-    const hold = (button, key) => {
-      const on = () => { state[key] = true; };
-      const off = () => { state[key] = false; };
-      button.addEventListener('pointerdown', on);
-      button.addEventListener('pointerup', off);
-      button.addEventListener('pointercancel', off);
-      button.addEventListener('pointerleave', off);
+    const hold = (btn, field) => {
+      const on = () => {
+        state[field] = true;
+      };
+      const off = () => {
+        state[field] = false;
+      };
+      btn.addEventListener('pointerdown', on);
+      btn.addEventListener('pointerup', off);
+      btn.addEventListener('pointercancel', off);
+      btn.addEventListener('pointerleave', off);
     };
 
     hold(ui.throttle, 'throttle');
     hold(ui.brake, 'brake');
 
-    window.addEventListener('keydown', (e) => {
-      if (e.code === 'ArrowRight' || e.code === 'KeyD') state.throttle = true;
-      if (e.code === 'ArrowLeft' || e.code === 'KeyA') state.brake = true;
+    window.addEventListener('keydown', (event) => {
+      if (event.code === 'ArrowRight' || event.code === 'KeyD') state.throttle = true;
+      if (event.code === 'ArrowLeft' || event.code === 'KeyA') state.brake = true;
     });
 
-    window.addEventListener('keyup', (e) => {
-      if (e.code === 'ArrowRight' || e.code === 'KeyD') state.throttle = false;
-      if (e.code === 'ArrowLeft' || e.code === 'KeyA') state.brake = false;
+    window.addEventListener('keyup', (event) => {
+      if (event.code === 'ArrowRight' || event.code === 'KeyD') state.throttle = false;
+      if (event.code === 'ArrowLeft' || event.code === 'KeyA') state.brake = false;
     });
 
     ui.restart.addEventListener('click', resetRun);
+
     ui.revive.addEventListener('click', async () => {
       if (!state.dead || state.revived) {
-        setStatus('Ревайв доступен только один раз после аварии.');
+        setStatus('Ревайв возможен только 1 раз после аварии.');
         return;
       }
-      const granted = await showRewardedAd();
-      if (!granted) {
-        setStatus('Реклама не досмотрена: ревайв недоступен.');
+      const rewarded = await showRewardedAd();
+      if (!rewarded) {
+        setStatus('Нужно досмотреть рекламу, чтобы получить ревайв.');
         return;
       }
+
       state.dead = false;
       state.revived = true;
       state.bodyRotation = 0;
-      state.yVelocity = -3;
-      state.velocity = Math.max(state.velocity, 2.5);
-      setStatus('Ревайв активирован. Удачи!');
+      state.angularVelocity = 0;
+      state.yVelocity = -3.4;
+      state.velocity = Math.max(state.velocity, 2.8);
+      setStatus('Ревайв активирован. Поехали дальше!');
     });
 
     ui.unlockSunset.addEventListener('click', () => buy('skin', 'sunset', SKINS.sunset.unlock));
@@ -451,52 +567,55 @@
     ui.iapCoins.addEventListener('click', purchaseCoinsPack);
 
     ui.vehicleSelect.addEventListener('change', () => {
-      const v = ui.vehicleSelect.value;
-      if (!state.ownedVehicles.includes(v)) {
-        setStatus('Этот транспорт нужно купить в гараже.');
+      const nextVehicle = ui.vehicleSelect.value;
+      if (!state.ownedVehicles.includes(nextVehicle)) {
         ui.vehicleSelect.value = state.selectedVehicle;
+        setStatus('Сначала купи эту машину в гараже.');
         return;
       }
-      state.selectedVehicle = v;
+      state.selectedVehicle = nextVehicle;
       persist();
+      resetRun();
+      setStatus(`Машина изменена на ${VEHICLES[nextVehicle].name}. Заезд перезапущен.`);
     });
 
     ui.mapSkinSelect.addEventListener('change', () => {
-      const s = ui.mapSkinSelect.value;
-      if (!state.ownedSkins.includes(s)) {
-        setStatus('Этот скин маршрута сначала нужно купить.');
+      const nextSkin = ui.mapSkinSelect.value;
+      if (!state.ownedSkins.includes(nextSkin)) {
         ui.mapSkinSelect.value = state.selectedSkin;
+        setStatus('Сначала открой этот скин маршрута.');
         return;
       }
-      state.selectedSkin = s;
+      state.selectedSkin = nextSkin;
       persist();
+      resetRun();
+      setStatus(`Карта: ${SKINS[nextSkin].name}. Заезд перезапущен с новыми условиями.`);
     });
 
     window.addEventListener('resize', resize);
   }
 
   let last = performance.now();
-  function loop(now) {
+  function frame(now) {
     const dt = Math.min((now - last) / 16.666, 2.2);
     last = now;
     update(dt);
     draw();
-    requestAnimationFrame(loop);
+    requestAnimationFrame(frame);
   }
 
   async function boot() {
-    resize();
-    bindEvents();
-    refreshShop();
-    await initYandexSdk();
-
     if (!state.ownedVehicles.includes(state.selectedVehicle)) state.selectedVehicle = 'lada';
     if (!state.ownedSkins.includes(state.selectedSkin)) state.selectedSkin = 'default';
 
-    state.worldX = 40;
-    state.carY = terrainHeight(state.worldX);
-    setStatus('Rusty Ridge: бесконечный маршрут, аномалии и кастомизация гаража.');
-    requestAnimationFrame(loop);
+    resize();
+    bindEvents();
+    refreshShop();
+    resetRun();
+    await initYandexSdk();
+
+    setStatus('Rusty Ridge: бесконечные трассы, физика склонов, аномалии и кастомизация.');
+    requestAnimationFrame(frame);
   }
 
   boot();

@@ -21,14 +21,10 @@ body {
 }
 
 #ui-layer {
-  pointer-events: none;
   position: fixed;
   inset: 0;
   z-index: 10;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+  pointer-events: none;
 }
 
 .hud,
@@ -36,30 +32,46 @@ body {
 .shop,
 .note {
   pointer-events: auto;
-  background: rgba(10, 10, 10, 0.66);
+  background: rgba(10, 10, 10, 0.72);
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 10px;
   backdrop-filter: blur(4px);
 }
 
 .hud {
+  position: fixed;
+  top: 12px;
+  left: 12px;
   display: flex;
   gap: 12px;
   padding: 8px 12px;
-  align-self: flex-start;
-}
-
-.controls {
-  display: flex;
-  gap: 8px;
-  padding: 8px;
-  align-self: flex-start;
 }
 
 .shop {
-  max-width: 520px;
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  width: min(520px, calc(100vw - 24px));
   padding: 10px;
-  align-self: flex-end;
+}
+
+.controls {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+}
+
+.note {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 12px;
+  width: min(860px, calc(100vw - 24px));
+  text-align: center;
+  padding: 8px 12px;
 }
 
 .shop h2 {
@@ -87,22 +99,19 @@ button:active {
   transform: scale(0.98);
 }
 
-.note {
-  align-self: center;
-  max-width: 800px;
-  text-align: center;
-  padding: 8px 12px;
-}
-
 @media (max-width: 900px) {
-  .shop {
-    max-width: unset;
-    width: 100%;
+  .hud {
+    width: calc(100vw - 24px);
+    justify-content: space-between;
   }
 
-  .hud,
-  .controls,
-  .note {
-    align-self: stretch;
+  .shop {
+    top: 74px;
+  }
+
+  .controls {
+    bottom: 76px;
+    width: calc(100vw - 24px);
+    justify-content: space-between;
   }
 }
