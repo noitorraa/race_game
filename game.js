@@ -277,7 +277,7 @@
     state.eventTimer = 380;
     state.coinsOnTrack = [];
 
-    const startGround = terrainHeight(state.worldX);
+    const startGround = terrainHeight(state.worldX) - 22;
     state.carY = startGround;
     state.yVelocity = 0;
     state.bodyRotation = Math.atan(terrainSlope(state.worldX));
@@ -321,13 +321,18 @@
     state.worldX += state.velocity * dt;
     state.cameraX = state.worldX - window.innerWidth * 0.25;
 
-    const groundY = terrainHeight(state.worldX);
+    const rideHeight = 22;
+    const groundY = terrainHeight(state.worldX) - rideHeight;
     const targetAngle = Math.atan(terrainSlope(state.worldX));
-    const prevGroundY = terrainHeight(state.worldX - state.velocity * dt);
-    const onGround = state.carY >= groundY - 2;
+    const prevGroundY = terrainHeight(state.worldX - state.velocity * dt) - rideHeight;
+    const groundGap = groundY - state.carY;
+    const onGround = groundGap <= 6 && state.yVelocity >= -1.2;
 
     if (onGround) {
-      state.carY = groundY;
+      const maxRise = (2.2 + Math.abs(state.velocity) * 0.55) * dt;
+      const correction = Math.max(-maxRise, groundY - state.carY);
+      state.carY += correction;
+      if (state.carY > groundY) state.carY = groundY;
       state.yVelocity = Math.min(0, state.yVelocity);
       state.airTime = 0;
 
@@ -348,7 +353,8 @@
       state.airTime += dt;
       state.yVelocity += gravity * dt;
       state.carY += state.yVelocity;
-      state.angularVelocity *= 0.997;
+      state.angularVelocity += (state.velocity * 0.0009) * dt;
+      state.angularVelocity *= 0.996;
       state.bodyRotation += state.angularVelocity;
     }
 
@@ -372,7 +378,7 @@
       persist();
     }
 
-    const hardFlip = Math.abs(state.bodyRotation) > 2.7 && (Math.abs(state.velocity) > 3 || state.airTime > 28);
+    const hardFlip = Math.abs(state.bodyRotation) > 2.35 && (Math.abs(state.velocity) > 2 || state.airTime > 14);
     if (hardFlip || state.carY > groundY + 220) {
       state.dead = true;
       setStatus('Авария! Можно сделать 1 ревайв за rewarded-рекламу.');
@@ -481,7 +487,7 @@
     const sy = state.carY;
 
     ctx.save();
-    ctx.translate(sx, sy - 16);
+    ctx.translate(sx, sy - 22);
     ctx.rotate(state.bodyRotation);
 
     ctx.fillStyle = vehicle.color;
