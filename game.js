@@ -112,6 +112,7 @@
     yVelocity: 0,
     bodyRotation: 0,
     angularVelocity: 0,
+    airTime: 0,
     gravity: 0.34,
     dist: 0,
     coins: Number(localStorage.getItem('rr_coins') || 0),
@@ -281,6 +282,7 @@
     state.yVelocity = 0;
     state.bodyRotation = Math.atan(terrainSlope(state.worldX));
     state.angularVelocity = 0;
+    state.airTime = 0;
     setStatus('Новый заезд: бесконечная трасса, аномалии и кастомные машины.');
   }
 
@@ -301,17 +303,17 @@
     if (state.currentEvent?.gravityMul) gravity *= state.currentEvent.gravityMul;
 
     const slopeAngle = Math.atan(terrainSlope(state.worldX));
-    const slopeForce = Math.sin(slopeAngle) * gravity * 2.4 * vehicle.mass;
+    const gravityAlongSlope = Math.sin(slopeAngle) * gravity * 1.9;
 
     const tractionMul = vehicle.traction * skin.traction;
-    if (state.throttle) state.velocity += vehicle.accel * tractionMul * dt;
-    if (state.brake) state.velocity -= vehicle.brake * dt;
+    const engineForce = (state.throttle ? vehicle.accel * tractionMul : 0) - (state.brake ? vehicle.brake : 0);
+    const drag = 0.014 * skin.friction * vehicle.mass;
+    const rolling = 0.01 * skin.friction;
 
-    state.velocity -= slopeForce * dt;
-
-    const rolling = 0.018 * skin.friction * vehicle.mass * Math.sign(state.velocity || 1);
-    state.velocity -= rolling * dt;
-    state.velocity *= 0.997;
+    state.velocity += (engineForce - gravityAlongSlope) * dt;
+    state.velocity -= state.velocity * drag * dt;
+    state.velocity -= Math.sign(state.velocity) * rolling * dt;
+    if (!state.throttle && !state.brake && Math.abs(state.velocity) < 0.03) state.velocity = 0;
     state.velocity = Math.min(Math.max(state.velocity, -6), vehicle.maxSpeed);
 
     state.worldX += state.velocity * dt;
@@ -319,24 +321,27 @@
 
     const groundY = terrainHeight(state.worldX);
     const targetAngle = Math.atan(terrainSlope(state.worldX));
-
-    const onGround = state.carY >= groundY - 4 && state.yVelocity >= -0.2;
+    const prevGroundY = terrainHeight(state.worldX - state.velocity * dt);
+    const onGround = state.carY >= groundY - 2;
 
     if (onGround) {
       state.carY = groundY;
-      state.yVelocity = 0;
+      state.yVelocity = Math.min(0, state.yVelocity);
+      state.airTime = 0;
 
       const grip = vehicle.grip * skin.traction;
       const angleDiff = targetAngle - state.bodyRotation;
-      state.angularVelocity += angleDiff * grip * dt;
-      state.angularVelocity *= 0.8;
+      state.angularVelocity += angleDiff * grip * dt * 0.75;
+      state.angularVelocity *= 0.68;
       state.bodyRotation += state.angularVelocity;
 
-      if (Math.abs(angleDiff) > 0.6 && Math.abs(state.velocity) > 6.5) {
-        state.yVelocity = -4.8 - Math.abs(state.velocity) * 0.15;
-        state.angularVelocity += angleDiff * 0.25;
+      const crestDrop = prevGroundY - groundY;
+      if (crestDrop > 7 && Math.abs(state.velocity) > 5.8) {
+        state.yVelocity = -2.1 - Math.abs(state.velocity) * 0.12;
+        state.angularVelocity += angleDiff * 0.12;
       }
     } else {
+      state.airTime += dt;
       state.yVelocity += gravity * dt;
       state.carY += state.yVelocity;
       state.angularVelocity *= 0.997;
@@ -363,7 +368,8 @@
       persist();
     }
 
-    if (Math.abs(state.bodyRotation) > 2.1 || state.carY > groundY + 220) {
+    const hardFlip = Math.abs(state.bodyRotation) > 2.45 && (Math.abs(state.velocity) > 2.2 || state.airTime > 18);
+    if (hardFlip || state.carY > groundY + 220) {
       state.dead = true;
       setStatus('Авария! Можно сделать 1 ревайв за rewarded-рекламу.');
     }
