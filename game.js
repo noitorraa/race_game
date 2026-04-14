@@ -23,8 +23,8 @@
   const VEHICLES = {
     lada: {
       name: 'Лада Classic',
-      accel: 0.12,
-      brake: 0.17,
+      accel: 0.24,
+      brake: 0.2,
       traction: 1,
       grip: 0.09,
       mass: 1,
@@ -35,8 +35,8 @@
     },
     uaz: {
       name: 'UAZ Trail',
-      accel: 0.11,
-      brake: 0.14,
+      accel: 0.21,
+      brake: 0.18,
       traction: 1.2,
       grip: 0.12,
       mass: 1.15,
@@ -47,8 +47,8 @@
     },
     gaz: {
       name: 'GAZ Cargo',
-      accel: 0.085,
-      brake: 0.12,
+      accel: 0.17,
+      brake: 0.16,
       traction: 1.05,
       grip: 0.1,
       mass: 1.45,
@@ -303,16 +303,18 @@
     if (state.currentEvent?.gravityMul) gravity *= state.currentEvent.gravityMul;
 
     const slopeAngle = Math.atan(terrainSlope(state.worldX));
-    const gravityAlongSlope = Math.sin(slopeAngle) * gravity * 1.9;
+    const gravityAlongSlope = Math.sin(slopeAngle) * gravity * 0.7;
 
     const tractionMul = vehicle.traction * skin.traction;
-    const engineForce = (state.throttle ? vehicle.accel * tractionMul : 0) - (state.brake ? vehicle.brake : 0);
-    const drag = 0.014 * skin.friction * vehicle.mass;
-    const rolling = 0.01 * skin.friction;
+    const engineForce = (state.throttle ? vehicle.accel * tractionMul * 2.4 : 0) - (state.brake ? vehicle.brake * 1.8 : 0);
+    const drag = 0.022 * skin.friction * vehicle.mass;
+    const rolling = 0.009 * skin.friction;
 
     state.velocity += (engineForce - gravityAlongSlope) * dt;
     state.velocity -= state.velocity * drag * dt;
-    state.velocity -= Math.sign(state.velocity) * rolling * dt;
+    if (Math.abs(state.velocity) > 0.02) {
+      state.velocity -= Math.sign(state.velocity) * rolling * dt;
+    }
     if (!state.throttle && !state.brake && Math.abs(state.velocity) < 0.03) state.velocity = 0;
     state.velocity = Math.min(Math.max(state.velocity, -6), vehicle.maxSpeed);
 
@@ -331,13 +333,15 @@
 
       const grip = vehicle.grip * skin.traction;
       const angleDiff = targetAngle - state.bodyRotation;
-      state.angularVelocity += angleDiff * grip * dt * 0.75;
-      state.angularVelocity *= 0.68;
+      state.angularVelocity += angleDiff * grip * dt * 0.45;
+      state.angularVelocity *= 0.55;
+      state.angularVelocity = Math.max(Math.min(state.angularVelocity, 0.08), -0.08);
       state.bodyRotation += state.angularVelocity;
+      state.bodyRotation += (targetAngle - state.bodyRotation) * 0.12;
 
       const crestDrop = prevGroundY - groundY;
-      if (crestDrop > 7 && Math.abs(state.velocity) > 5.8) {
-        state.yVelocity = -2.1 - Math.abs(state.velocity) * 0.12;
+      if (crestDrop > 9 && Math.abs(state.velocity) > 7.2) {
+        state.yVelocity = -1.6 - Math.abs(state.velocity) * 0.08;
         state.angularVelocity += angleDiff * 0.12;
       }
     } else {
@@ -368,7 +372,7 @@
       persist();
     }
 
-    const hardFlip = Math.abs(state.bodyRotation) > 2.45 && (Math.abs(state.velocity) > 2.2 || state.airTime > 18);
+    const hardFlip = Math.abs(state.bodyRotation) > 2.7 && (Math.abs(state.velocity) > 3 || state.airTime > 28);
     if (hardFlip || state.carY > groundY + 220) {
       state.dead = true;
       setStatus('Авария! Можно сделать 1 ревайв за rewarded-рекламу.');
