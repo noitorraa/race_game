@@ -1,0 +1,117 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: #111;
+}
+
+#game {
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  touch-action: none;
+}
+
+#ui-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.hud,
+.controls,
+.shop,
+.note {
+  pointer-events: auto;
+  background: rgba(10, 10, 10, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  backdrop-filter: blur(4px);
+}
+
+.hud {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  gap: 12px;
+  padding: 8px 12px;
+}
+
+.shop {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  width: min(520px, calc(100vw - 24px));
+  padding: 10px;
+}
+
+.controls {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+}
+
+.note {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 12px;
+  width: min(860px, calc(100vw - 24px));
+  text-align: center;
+  padding: 8px 12px;
+}
+
+.shop h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.shop-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+button,
+select {
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #2a2a2a;
+  color: #f5f5f5;
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+@media (max-width: 900px) {
+  .hud {
+    width: calc(100vw - 24px);
+    justify-content: space-between;
+  }
+
+  .shop {
+    top: 74px;
+  }
+
+  .controls {
+    bottom: 76px;
+    width: calc(100vw - 24px);
+    justify-content: space-between;
+  }
+}

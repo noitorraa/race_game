@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Rusty Ridge: Russian Cars Dash</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://yandex.ru/games/sdk/v2"></script>
+</head>
+<body>
+  <div id="ui-layer">
+    <div class="hud">
+      <div>Дистанция: <span id="distance">0</span> м</div>
+      <div>Монеты: <span id="coins">0</span></div>
+      <div>Рекорд: <span id="best">0</span> м</div>
+    </div>
+
+    <div class="controls">
+      <button id="btn-throttle">Газ</button>
+      <button id="btn-brake">Тормоз</button>
+      <button id="btn-restart">Рестарт</button>
+      <button id="btn-revive">Ревайв за рекламу</button>
+    </div>
+
+    <div class="shop">
+      <h2>Гараж (косметика)</h2>
+      <div class="shop-row">
+        <label for="vehicle-select">Транспорт:</label>
+        <select id="vehicle-select">
+          <option value="lada">Лада Classic</option>
+          <option value="uaz">UAZ Trail</option>
+          <option value="gaz">GAZ Cargo</option>
+        </select>
+      </div>
+      <div class="shop-row">
+        <label for="map-skin-select">Скин маршрута:</label>
+        <select id="map-skin-select">
+          <option value="default">Базовый</option>
+          <option value="sunset">Закат</option>
+          <option value="winter">Зимний</option>
+        </select>
+      </div>
+      <div class="shop-row">
+        <button id="btn-unlock-sunset">Купить «Закат» (250)</button>
+        <button id="btn-unlock-winter">Купить «Зимний» (350)</button>
+      </div>
+      <div class="shop-row">
+        <button id="btn-buy-uaz">Купить UAZ (400)</button>
+        <button id="btn-buy-gaz">Купить GAZ (600)</button>
+      </div>
+      <div class="shop-row">
+        <button id="btn-iap-coins">+1000 монет (IAP)</button>
+      </div>
+    </div>
+
+    <div class="note" id="status">Собирай монеты, открывай скины и машины. Держи баланс, не перевернись!</div>
+  </div>
+
+  <canvas id="game" width="1280" height="720"></canvas>
+  <script src="game.js"></script>
+</body>
+</html>
